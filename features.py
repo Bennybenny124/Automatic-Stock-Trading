@@ -15,7 +15,7 @@ def get_features(dataframe, filename):
     indicators['MA5'] = df['Close'].rolling(window=5).mean()
     indicators['MA20'] = df['Close'].rolling(window=20).mean()
     indicators['MA60'] = df['Close'].rolling(window=60).mean()
-    indicators['MA240'] = df['Close'].rolling(window=24).mean()
+    indicators['MA240'] = df['Close'].rolling(window=240).mean()
 
     # --- MACD ---
     ema12 = df['Close'].ewm(span=12, adjust=False).mean()

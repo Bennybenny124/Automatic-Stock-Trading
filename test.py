@@ -1,59 +1,60 @@
-import json
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from stable_baselines3 import PPO
-from env import StockTradingEnv
+from env import StockTradingEnv  # 或改成你實際的檔名
 
-# === 測試參數 ===
-window_size = 252
-model_path = "models/multi_stock_trader"
+# === 載入資料 ===
+ticker = "AAPL"
+df = pd.read_csv(f"stocks/{ticker}.csv")
+df = df[['Open', 'High', 'Low', 'Close', 'Volume']].dropna()
+stock_data = {ticker: df}
 
-# === 載入測試股票資料（以第一支為例）===
-with open("stocks/stocks.json", "r") as f:
-    stock_files = json.load(f)["general"]
+# === 建立環境與模型 ===
+env = StockTradingEnv(stock_data)
+model = PPO.load("models/PPO")
 
-test_file = stock_files[0]
-df = pd.read_csv(f"stocks/{test_file}.csv")
-df = pd.read_csv("stocks/INTC.csv")
-prices = df["Close"].values
-
-# === 建立測試環境 ===
-env = StockTradingEnv(prices, window_size=window_size)
-model = PPO.load(model_path)
-
-# === 模擬測試，記錄資產變化 ===
 obs, _ = env.reset()
 done = False
 
-cash_list = [env.cash]
-shares_list = [env.shares_held]
-value_list = [env.cash + env.shares_held * prices[env.current_step]]
-price_list = [env.price[env.current_step]]
-step_list = [env.current_step]
+history = {
+    "step": [],
+    "net_worth": [],
+    "balance": [],
+    "price": [],
+    "shares": [],
+}
 
+# === 測試 ===
 while not done:
-    action, _ = model.predict(obs, deterministic=True)
-    obs, reward, terminated, truncated, _ = env.step(action)
-    total_value = env.cash + env.shares_held * prices[env.current_step]
-    done = terminated or truncated
+    action, _ = model.predict(obs)
+    obs, reward, done, truncated, _ = env.step(action)
 
-    cash_list.append(env.cash)
-    shares_list.append(env.shares_held)
-    value_list.append(total_value)
-    price_list.append(prices[env.current_step])
-    step_list.append(env.current_step)
+    price = df.iloc[min(env.current_step, len(df) - 1)]["Close"]
+    shares = env.shares_held[ticker]
+
+    history["step"].append(env.current_step)
+    history["net_worth"].append(env.net_worth)
+    history["balance"].append(env.balance)
+    history["price"].append(price)
+    history["shares"].append(shares)
 
 # === 畫圖 ===
-plt.figure(figsize=(12, 6))
-plt.plot(step_list, value_list, label="Total Asset Value")
-plt.plot(step_list, cash_list, label="Cash")
-plt.plot(step_list, np.array(shares_list) * np.array(price_list), label="Stock Holdings Value")
-plt.plot(step_list, price_list, label="Stock Price", linestyle="--", alpha=0.4)
-plt.title("Agent Asset Components During Test")
-plt.xlabel("Step")
-plt.ylabel("Value")
-plt.legend()
-plt.grid(True)
+steps = history["step"]
+
+plt.figure(figsize=(14, 10))
+
+plt.subplot(3, 1, 1)
+plt.plot(steps, history["price"], label="Price")
+plt.title("Stock Price")
+
+plt.subplot(3, 1, 2)
+plt.plot(steps, history["net_worth"], label="Net Worth", color="purple")
+plt.title("Net Worth Over Time")
+
+plt.subplot(3, 1, 3)
+plt.plot(steps, history["shares"], label="Shares Held", color="green")
+plt.title("Shares Held Over Time")
+
 plt.tight_layout()
 plt.show()
