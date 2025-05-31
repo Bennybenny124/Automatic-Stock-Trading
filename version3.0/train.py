@@ -35,7 +35,7 @@ def main():
         model.set_env(env)
         model.learn(total_timesteps=5000)
 
-    model.save("models/PPO_all_stocks_10days_fee")
+    model.save("models/PPO_all_stocks_10days")
 
 if __name__ == "__main__":
     main()

@@ -6,20 +6,13 @@ from env import StockTradingEnv  # 或改成你實際的檔名
 
 # === 載入資料 ===
 ticker = "AAPL"
-
 df = pd.read_csv(f"stocks/{ticker}.csv")
-
-offset = 250  # 跳過前250天的資料
-df = df.iloc[offset:].reset_index(drop=True)
-
-df = df[['Open', 'High', 'Low', 'Close', 'Volume', 'MA5', 'MA20', 'MA60', 'MA240',
-        'DIF', 'MACD', 'RSI', 'ATR', 'ADX', 'Bollinger_Upper', 'Bollinger_Lower', '%K', '%D']].dropna()
+df = df[['Open', 'High', 'Low', 'Close', 'Volume']].dropna()
 stock_data = {ticker: df}
 
 # === 建立環境與模型 ===
-#env = StockTradingEnv(stock_data)
-env = StockTradingEnv(df)
-model = PPO.load("models/PPO_all_stocks_10days_fee")
+env = StockTradingEnv(stock_data)
+model = PPO.load("models/PPO")
 
 obs, _ = env.reset()
 done = False
@@ -38,7 +31,7 @@ while not done:
     obs, reward, done, truncated, _ = env.step(action)
 
     price = df.iloc[min(env.current_step, len(df) - 1)]["Close"]
-    shares = env.shares_held
+    shares = env.shares_held[ticker]
 
     history["step"].append(env.current_step)
     history["net_worth"].append(env.net_worth)

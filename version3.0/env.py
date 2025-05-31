@@ -60,8 +60,6 @@ class StockTradingEnv(gym.Env):
         current_price = self.df.iloc[self.current_step]["Close"]
         act = action[0]
 
-        fee_rate = 0.001
-
         # if act > 0:
         #     shares = int(self.balance * act / current_price)
         #     self.balance -= shares * current_price
@@ -80,7 +78,6 @@ class StockTradingEnv(gym.Env):
 
         reward = 0
         window = 5  # 可調整為你想看的未來天數
-
         future_index = self.current_step + window
         if future_index < len(self.df):
             future_ma5 = self.df.iloc[future_index]["MA5"]
@@ -88,29 +85,18 @@ class StockTradingEnv(gym.Env):
         if act > 0:
             # 買進
             shares = int(self.balance * act / current_price)
-            cost = shares * current_price * (1 + fee_rate)  # 含手續費的成本
-            if cost > self.balance:
-                # 如果錢不夠買，調整可買股數
-                shares = int(self.balance / (current_price * (1 + fee_rate)))
-                cost = shares * current_price * (1 + fee_rate)
-            
-            self.balance -= cost
+            self.balance -= shares * current_price
             self.shares_held += shares
 
             if self.current_step + window < len(self.df):
                 # future_prices = self.df.iloc[self.current_step+1 : self.current_step+1+window]["Close"]
                 # avg_future_price = future_prices.mean()
-                reward = (future_ma5 - current_price) / current_price
+                reward = future_ma5 - current_price
 
         elif act < 0:
             # 賣出
             shares = int(self.shares_held * -act)
-            proceeds = shares * current_price * (1 - fee_rate)  # 賣出後扣手續費
-            if shares > self.shares_held:
-                shares = self.shares_held
-                proceeds = shares * current_price * (1 - fee_rate)
-
-            self.balance += proceeds 
+            self.balance += shares * current_price
             self.shares_held -= shares
             self.total_shares_sold += shares
             self.total_sales_value += shares * current_price
@@ -118,7 +104,7 @@ class StockTradingEnv(gym.Env):
             if self.current_step + window < len(self.df):
                 # future_prices = self.df.iloc[self.current_step+1 : self.current_step+1+window]["Close"]
                 # avg_future_price = future_prices.mean()
-                reward = (current_price - future_ma5) / current_price
+                reward = current_price - future_ma5
 
         self.net_worth = self.balance + self.shares_held * current_price
         self.max_net_worth = max(self.max_net_worth, self.net_worth)#new
