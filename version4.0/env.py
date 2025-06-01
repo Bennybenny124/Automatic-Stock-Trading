@@ -1,3 +1,7 @@
+# This version is armed with an advanced reward function, and works well in bear markets.
+# All reward are calculated by the actual cost/income(in dollars), then scaled down by the initial balance.
+# Smart holding is rewarded in this version, which has reduced frequent transaction.
+
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -7,7 +11,6 @@ class StockTradingEnv(gym.Env):
         super().__init__()
         self.df = df.reset_index(drop=True)
         self.n_features = self.df.shape[1]
-
         
         self.action_space = spaces.Box(low=-1, high=1, shape=(1,), dtype=np.float32)
 
@@ -56,13 +59,13 @@ class StockTradingEnv(gym.Env):
         act = float(action[0])
         reward = 0
 
-        # === 預測相關資料 ===
+        # Peaking the future (for training purpose)
         future_window = 20
         if self.current_step + future_window < len(self.df):
             future_prices = self.df.iloc[self.current_step + 1 : self.current_step + 1 + future_window]["Close"]
             avg_future_price = future_prices.mean()
         else:
-            avg_future_price = current_price  # 沒資料就假設不變
+            avg_future_price = current_price
 
         volume = 0
         if act > 0:
@@ -71,7 +74,7 @@ class StockTradingEnv(gym.Env):
             self.balance -= cost
             self.shares_held += volume
             reward -= cost
-            reward += (avg_future_price - current_price) * volume # 機會成本
+            reward += (avg_future_price - current_price) * volume # Opportunity cost
 
         elif act < 0:
             volume = int(self.shares_held * -act)
@@ -79,28 +82,25 @@ class StockTradingEnv(gym.Env):
             self.balance += revenue
             self.shares_held -= volume
             reward += revenue
-            reward += (current_price - avg_future_price) * volume # 機會成本
+            reward += (current_price - avg_future_price) * volume # OC
 
-        self.action = volume if act > 0 else -volume # 要觀察實際交易量
+        self.action = volume if act > 0 else -volume # The true transaction amount for observation
 
-        # 計算持有成本或獎勵
+        # Reward smart handling
         if volume < 0.05:
             reward += (avg_future_price - current_price) * self.shares_held
         else:
-            reward -= 1 if volume * current_price * 0.001 < 1 else volume * current_price * 0.001 # 交易手續費(有下限)
+            reward -= 1 if volume * current_price * 0.001 < 1 else volume * current_price * 0.001 # A 0.1% handling charge
 
-        interest_rate = 0.0001 # 2.5% 年息
-        reward += self.balance * interest_rate # 模擬錢放銀行也會生利息，間接鼓勵適當賣出
-        # reward += (self.net_worth - self.initial_balance) # 淨獲利會重複被算到，不佳
-        
-        reward /= self.initial_balance # scale down 獎勵
+        interest_rate = 0.0001 # A 2.5% anual interest rate
+        reward += self.balance * interest_rate # An Interest rate encourages proper selling
+        reward /= self.initial_balance # scale down the reward for the ease of the model
 
-        # === 資產更新 ===
+        # Update the assets
         self.net_worth = self.balance + self.shares_held * current_price
         self.max_net_worth = max(self.max_net_worth, self.net_worth)
 
         return self._next_observation(), reward, done, False, {}
-
 
     def render(self):
         print(f"Step {self.current_step}: Net Worth = {self.net_worth:.2f}, Balance = {self.balance:.2f}")
