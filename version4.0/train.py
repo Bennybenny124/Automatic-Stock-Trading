@@ -20,7 +20,7 @@ def load_data():
 
 def main():
     data = load_data()
-    model = PPO.load("models/PPO_all_stocks_10days_with_advanced_reward", device="cpu")
+    model = PPO.load("models/PPO_v4", device="cpu")
 
     policy_kwargs = dict(
         net_arch=[64, 64]
@@ -34,7 +34,7 @@ def main():
         model.set_env(env)
         model.learn(total_timesteps=5000)
 
-    model.save("models/PPO_all_stocks_10days_with_advanced_reward")
+    model.save("models/PPO_v4")
 
 if __name__ == "__main__":
     main()

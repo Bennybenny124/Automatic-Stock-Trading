@@ -19,7 +19,7 @@ stock_data = {ticker: df}
 # === 建立環境與模型 ===
 #env = StockTradingEnv(stock_data)
 env = StockTradingEnv(df)
-model = PPO.load("models/PPO_all_stocks_10days_with_advanced_reward", device="cpu")
+model = PPO.load("models/PPO_v4", device="cpu")
 
 obs, _ = env.reset()
 done = False
